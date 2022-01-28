@@ -1,3 +1,14 @@
+# Example files for id127
+counters.c
+counters
+hello.c
+hello
+ind.c
+ind
+matrixSum.c
+matrixSum
+pc.sems.c
+
 # Prerequisites
 *.d
 
