@@ -50,7 +50,9 @@ double read_timer(){
         initialized = true;
     }
     gettimeofday(&end, NULL);
-    return end.tv_usec - start.tv_sec;
+    // return end.tv_usec - start.tv_sec;
+    return (end.tv_sec - start.tv_sec) + 1.0e-6 * (end.tv_usec - start.tv_usec);
+
 }
 
 
@@ -109,5 +111,39 @@ int main(int argc, char *argv[]){
 /*  Each worker performs work on one strip of matrix
     After reachiing barrier, worker(0) computes and prints the total */
 void *Worker(void *arg){
-    // TODO finish
+    long myid = (long) arg;
+    int total, i, j, first, last;
+
+    #ifdef DEBUG
+        printf("worker %d is starting\n", myid);
+    #endif
+    // determine first and last rows in my strip
+    first = myid*strip_size;
+    last = (myid == num_workers -1)? (size - 1) : (first + strip_size -1);
+
+    // sum all values in my strip
+    total = 0;
+    for(i = first; i<=last; i++){
+        for(j = 0; j < size; j++){
+            total += matrix[i][j];
+        }
+    }
+    // add sum result to partial_sums array
+    partial_sums[myid] = total;
+    
+    #ifdef DEBUG
+        printf("worker %d reached barrier\n", myid);
+    #endif
+    Barrier();
+    // worker 0 finishes
+    if(myid == 0){
+        total = 0;
+        for(i = 0; i < num_workers; i++){
+            total += partial_sums[i];
+        }
+        end_time = read_timer();
+
+        printf("The total sum is %d\n", total);
+        printf("The execution time is %g seconds\n", end_time - start_time);
+    }
 }
