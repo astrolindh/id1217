@@ -9,6 +9,9 @@ matrixSum.c
 matrixSum
 pc.sems.c
 
+# editor specific
+.vscode/
+
 # Prerequisites
 *.d
 
