@@ -7,7 +7,6 @@
 #include <stdbool.h>
 #include <time.h>
 #include <sys/time.h>
-#include <string.h>
 
 #define MAXSIZE 10000       // maximum matrix size
 #define STANDARDSIZE 100    // matrix size, if not specified
@@ -69,22 +68,7 @@ int main(int argc, char *argv[]){
         }
     }
 
-    // print the matrix
-    /*#ifdef DEBUG
-    for (int i = 0; i < size; i++) {
-	    printf("[ ");
-	    for (int j = 0; j < size; j++) {
-	        printf(" %d", matrix[i][j]);
-	    }
-	    printf(" ]\n");
-    }
-    #endif*/
-
     // PARALELL START, create workers
-    int *results;
-    results = (int*)calloc(1, sizeof(int));
-    int matrix_total = 0;
-
     start_time = read_timer();
     for(int w = 0; w < num_workers; w++){
         pthread_create(&worker_id[w],&attr, Worker, (void *) w);
