@@ -15,14 +15,18 @@
 #define STANDARDWORKERS 10  // number of workers, if not specified
 
 // shared variables
-pthread_mutex_t lock;       // mutex lock to read/write shared variables
-int num_workers;           /* number of workers */ 
+pthread_mutex_t lock;       // mutex lock, to read/write shared variables
+pthread_mutex_t bag;        // mutex lock, to synchronize bag of tasks task assignment
+int num_workers;            // number of workers
 double start_time, end_time;
-int size, strip_size;
+int size;                   // matrix is of size*size
 int matrix[MAXSIZE][MAXSIZE];
 int gmin = 100;
 int gmax = -1;
 int gmin_i, gmin_j, gmax_i, gmax_j; // global minimum and maximum, and their corresponding indeces
+
+int next_row = 0;           // bag of tasks
+int gtotal = 0;          // sum of all matrix elements, global total
 
 void *Worker(void *);       // proper definition after main
 
@@ -46,9 +50,6 @@ int main(int argc, char *argv[]){
     num_workers = (argc > 2)? atoi(argv[2]) : STANDARDWORKERS;
     if(num_workers > MAXWORKERS){num_workers = STANDARDWORKERS;}
 
-    // set strip size
-    strip_size = size/num_workers;
-
     // initialize local variables
     int m, n;   
     pthread_attr_t attr;                // NULL?
@@ -59,6 +60,7 @@ int main(int argc, char *argv[]){
     pthread_attr_setschedpolicy(&attr, PTHREAD_SCOPE_SYSTEM);
 
     pthread_mutex_init(&lock, NULL);
+    pthread_mutex_init(&bag, NULL);
 
     // initialize matrix
     for(m = 0; m < size; m++){
@@ -68,7 +70,7 @@ int main(int argc, char *argv[]){
     }
 
     // print the matrix
-    #ifdef DEBUG
+    /*#ifdef DEBUG
     for (int i = 0; i < size; i++) {
 	    printf("[ ");
 	    for (int j = 0; j < size; j++) {
@@ -76,7 +78,7 @@ int main(int argc, char *argv[]){
 	    }
 	    printf(" ]\n");
     }
-    #endif
+    #endif*/
 
     // PARALELL START, create workers
     int *results;
@@ -88,81 +90,77 @@ int main(int argc, char *argv[]){
         pthread_create(&worker_id[w],&attr, Worker, (void *) w);
     }
     for(int w = 0; w < num_workers; w++){
-        pthread_join(worker_id[w], (void*) results);
-        matrix_total += *results;
+        pthread_join(worker_id[w], (void*) NULL);
     }
     end_time = read_timer();
-    printf("final total === %d\n", matrix_total);
+    printf("final total === %d\n", gtotal);
     printf("one global max is: %d  found at (%d,%d)\n", gmax, gmax_i, gmax_j);
     printf("one global min is: %d  found at (%d,%d)\n", gmin, gmin_i, gmin_j);
     printf("The execution time is %g seconds\n", end_time - start_time);
     pthread_exit(NULL);
 }
 
-//  A. Worker should find maximum and minimum values, with corresponding indeces.
-//      Worker 0 should select the global max and min and print out their indeces
 void *Worker(void *arg){
     long myid = (long) arg;
-    int total, i, j, first, last;
+    int total, i, j;
     int min, max, min_i, min_j, max_i, max_j;
-
+    int row;    // the current task
     #ifdef DEBUG
         printf("worker %ld is starting\n", myid);
     #endif
-    // determine first and last rows in my strip
-    first = myid*strip_size;
-    last = (myid == num_workers -1)? (size - 1) : (first + strip_size -1);
-
-    // sum all values in my strip
-    total = 0;
-    for(i = first; i<=last; i++){
-        for(j = 0; j < size; j++){
-            total += matrix[i][j];
-        }
-    }
     
-    // find minimum value and index in my strip. If several min values, selects the latest occurence of min or mac in strip
-    // valid values in matrix is [0,98]
-    min = 100;
-    max = -1;
-    for(i = first; i<=last; i++){
+
+    while(true){
+        // CS grab task
+        pthread_mutex_lock(&bag);
+        row = next_row;
+        next_row++;
+        #ifdef DEBUG
+            printf("worker %ld grabbed row %d\n", myid, row);
+        #endif
+        pthread_mutex_unlock(&bag);
+        
+        if(row >= size){ 
+            #ifdef DEBUG
+                printf("worker %ld breaks at row %d\n", myid, row);
+            #endif
+            break; 
+        }  
+
+        min = 100;
+        max = -1;
+        total = 0;
         for(j = 0; j < size; j++){
-            if(matrix[i][j] < min){
-                min = matrix[i][j];
-                min_i = i;
+            total += matrix[row][j];
+            if(matrix[row][j] < min){
+                min = matrix[row][j];
+                min_i = row;
                 min_j = j;
             }
-            if(matrix[i][j] > max){
-                max = matrix[i][j];
-                max_i = i;
+            if(matrix[row][j] > max){
+                max = matrix[row][j];
+                max_i = row;
                 max_j = j;
             }
         }
+        // critical section: store total, conditional store on min, max
+        pthread_mutex_lock(&lock); 
+        if(min < gmin){
+            gmin = min;
+            gmin_i = min_i;
+            gmin_j = min_j;
+        }   
+        if(max > gmax){
+            gmax = max;
+            gmax_i = max_i;
+            gmax_j = max_j;
+        }
+        gtotal += total;
+        pthread_mutex_unlock(&lock);
     }
-    #ifdef DEBUG
-        printf("worker %ld found this local max: %d at index (%d, %d)\n", myid, max, max_i, max_j);        
-        printf("worker %ld found this local min: %d at index (%d, %d)\n", myid, min, min_i, min_j);
-        // printf("worker %ld reached barrier\n", myid);
-    #endif
-
-    // compare local thread min and max to global matrix min, max.
-    // save to thread-external data structure if lesser than current global min, larger than current global max
-    pthread_mutex_lock(&lock); 
-    if(min < gmin){
-        gmin = min;
-        gmin_i = min_i;
-        gmin_j = min_j;
-    }
-    if(max > gmax){
-        gmax = max;
-        gmax_i = max_i;
-        gmax_j = max_j;
-    }
-    pthread_mutex_unlock(&lock);
-
     #ifdef DEBUG
         printf("attempting exit of worker %ld\n", myid);
     #endif
 
-    pthread_exit((void*) total);
+    pthread_exit((void*) NULL);
 }
