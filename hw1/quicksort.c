@@ -1,5 +1,6 @@
 /*
     Attempt at paralellizing quicksort, using recursive paralellism.
+
 */
 
 #ifndef _REENTRANT
@@ -13,17 +14,20 @@
 #include <time.h>
 #include <sys/time.h>
 
-#define MAXSIZE 1000       // max size of input array to be sorted
+#define MAXSIZE 100000       // max size of input array to be sorted
 #define STANDARDSIZE 100   // if no command line argument to specify input size, use this value
 #define MAXWORKERS 10
 #define STANDARDWORKERS 10   // if no number of workers specified at command line, use this value
 
 // shared and global variables
 double start_time, end_time;
-int size;                      // n values to be sorted
+long size;                      // n values to be sorted
 int num_workers;            // number of workers
-int unsorted[MAXSIZE];
-
+int values[MAXSIZE];
+struct limits {
+    long first, last;       // first and last positions for a quicksort partition
+    int level;              // levels of partioning, to limit thread spawning
+};
 
 // timer for paralell code section
 double read_timer(){
@@ -38,17 +42,41 @@ double read_timer(){
     return (end.tv_sec - start.tv_sec) + 1.0e-6 * (end.tv_usec - start.tv_usec);
 }
 
-
-void *Quick(void *arg, int numbers[], int first, int last){
+void *Quick(void *arg){
+    // todo, objektet som tas emot är en limits, ur denna hämtas first, last, level
     long myid = (long) arg;
-    int i, j, pivot, temp;
-
+    int i, j, pivot, temp, first, last;
     printf("worker %ld is starting\n", myid);
+    if(first < last){
+        pivot = first;
+        i = first;
+        j = last;
+        while(i < j){
+            while(values[i] <= values[pivot] && i < last) { i++; }
+            while(values[j] > values[pivot]){ j--; }
+            if(i < j){
+                temp = values[i];
+                // CS start
+                values[i] = values[j];
+                values[j] = temp;
+                // CS end
+            }
+        }
+        temp = values[pivot];
+        // CS start
+        values[i] = values[j];
+        values[j] = temp;
+        // CS end
+
+        // let new thread sort left subsection
+        // let old thread sort right subsection, and wait for new to join
+        // pthread_exit, in order to let parent thread accept this child?
+    }
 }
 
 int main(int argc, char *argv[]){
     // read input arguments from command line, or set to standard values
-    size = (argc > 1)? atoi(argv[1]) : STANDARDSIZE;
+    size = (argc > 1)? atol(argv[1]) : STANDARDSIZE;
     if(size > MAXSIZE){size = STANDARDSIZE;}
     num_workers = (argc > 2)? atoi(argv[2]) : STANDARDWORKERS;
     if(num_workers > MAXWORKERS){num_workers = STANDARDWORKERS;}
@@ -60,27 +88,30 @@ int main(int argc, char *argv[]){
     pthread_attr_setschedpolicy(&attr, PTHREAD_SCOPE_SYSTEM);
 
     // create the array to be sorted, populate with values of [0,98]
-    for(int i = 0; i <= size; i++){ unsorted[i] = rand()%99; }
-    for(long j = 0; j <= num_workers; j++){ workers[j]; }
+    for(long i = 0; i <= size; i++){ values[i] = rand()%99; }
+    // for(long j = 0; j <= num_workers; j++){ workers[j]; }
     #ifdef DEBUG
         printf("{");
         for(int i = 0; i < size; i++){
-            printf("%d, ", unsorted[i]);
+            printf("%d, ", values[i]);
         }
         printf("}\n");
     #endif
     start_time = read_timer();
 
     long w2 = 1;
-    pthread_create(&workers[w], &attr, Quick, (void *) w);
-    pthread_create(&workers[w2], &attr, Quick, (void *) w2);
-
+    struct limits point = {0, size - 1, 0};
+    struct limits *starting_point;
+    starting_point = &point;
+    printf("given starting point: %ld, %ld,  at level %d\n", starting_point->first, starting_point->last, starting_point->level);
+    pthread_create(&workers[w], &attr, Quick, (void *) starting_point);
+    
 
     end_time = read_timer();
     #ifdef DEBUG
         printf("{");
         for(int i = 0; i < size; i++){
-            printf("%d, ", unsorted[i]);
+            printf("%d, ", values[i]);
         }
         printf("}\n");
     #endif
