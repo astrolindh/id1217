@@ -9,11 +9,10 @@
 #include <sys/time.h>
 #include <string.h>
 
-#define MAXSIZE 100       // maximum matrix size
+#define MAXSIZE 10000       // maximum matrix size
 #define STANDARDSIZE 100    // matrix size, if not specified
 #define MAXWORKERS 10       // maximum number of workers
 #define STANDARDWORKERS 10  // number of workers, if not specified
-
 
 // shared variables
 pthread_mutex_t lock;  /* mutex lock for the barrier */
@@ -94,8 +93,8 @@ int main(int argc, char *argv[]){
     }
     end_time = read_timer();
     printf("final total === %d\n", matrix_total);
-    printf("global max is: %d,  (%d,%d)\n", gmax, gmax_i, gmax_j);
-    printf("global min is: %d,  (%d,%d)\n", gmin, gmin_i, gmin_j);
+    printf("one global max is: %d  found at (%d,%d)\n", gmax, gmax_i, gmax_j);
+    printf("one global min is: %d  found at (%d,%d)\n", gmin, gmin_i, gmin_j);
     printf("The execution time is %g seconds\n", end_time - start_time);
     pthread_exit(NULL);
 }
@@ -122,8 +121,8 @@ void *Worker(void *arg){
         }
     }
     
-    // find minimum value and index in my strip
-    // valid values in matrix is [0,99]
+    // find minimum value and index in my strip. If several min values, selects the latest occurence of min or mac in strip
+    // valid values in matrix is [0,98]
     min = 100;
     max = -1;
     for(i = first; i<=last; i++){

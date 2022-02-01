@@ -8,7 +8,7 @@
 #include <time.h>
 #include <sys/time.h>
 
-#define MAXSIZE 100       // maximum matrix size
+#define MAXSIZE 10000       // maximum matrix size
 #define STANDARDSIZE 100    // matrix size, if not specified
 #define MAXWORKERS 10       // maximum number of workers
 #define STANDARDWORKERS 10  // number of workers, if not specified
