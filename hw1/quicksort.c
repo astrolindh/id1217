@@ -71,15 +71,17 @@ void quick(int values[], int first, int last){
 
 
 void *Quick(void *l){
+    printf("ENTERED QUICK\n");
     // long myid = (long) arg;
-    int i, j, pivot, temp, first, last, my_id;
-
+    int i, j, pivot, temp, my_id;
+    long first, last;
     // todo, objektet som tas emot är en limits, ur denna hämtas first, last, my_id
     struct limits *lim = l;
     my_id = lim->my_id;
     first = lim->first;
     last = lim->last;
 
+    printf("reading from struct     first: %ld, last: %ld.  my_id: %d\n", first, last, my_id);
     // if my_id < num_workers
     printf("worker %d is starting\n", my_id);
     if(first < last){
@@ -161,19 +163,27 @@ void *Quick(void *l){
     pthread_exit(NULL);
 }
 
+
+void sanity(){
+    bool ordered = true;
+    for(int i = 1; i <= size; i++){
+        if(values[i-1] > values[i]){ ordered = false;}
+    }
+    if(ordered){ printf("output is ordered\n"); }
+    else { printf("NOT IN ORDER!\n"); }
+}
 int main(int argc, char *argv[]){
     // read input arguments from command line, or set to standard values
     size = (argc > 1)? atol(argv[1]) : STANDARDSIZE;
     if(size > MAXSIZE){size = STANDARDSIZE;}
     num_workers = (argc > 2)? atoi(argv[2]) : STANDARDWORKERS;
     if(num_workers > MAXWORKERS){num_workers = STANDARDWORKERS;}
-
+    created_workers = 0;
     pthread_attr_t attr;
     // pthread_t workers[num_workers];
     pthread_t *restrict root_worker;
     // pthread_t *rw;
     // w = &root_worker;
-    long w = 0;
     pthread_attr_init(&attr);
     pthread_attr_setschedpolicy(&attr, PTHREAD_SCOPE_SYSTEM);
     pthread_mutex_init(&lock, NULL);
@@ -197,6 +207,7 @@ int main(int argc, char *argv[]){
     created_workers = 1;
         
     start_time = read_timer();
+    printf("diving into Quick for first time\n");
     pthread_create(&workers[created_workers], &attr, Quick, (void *) starting_point);
     
 
@@ -208,6 +219,9 @@ int main(int argc, char *argv[]){
         }
         printf("}\n");
     #endif
-    printf("Worker %ld finished\n", w);
+    #ifdef DEBUG
+        sanity();
+    #endif
+    printf("Main execution path finished\n");
     printf("The execution time is %g seconds\n", end_time - start_time);
 }
