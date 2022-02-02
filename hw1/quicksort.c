@@ -25,7 +25,7 @@ double start_time, end_time;
 long size;                      // n values to be sorted
 int num_workers;            // maximum allowed number of workers
 int created_workers;        // current number of workers
-pthread_t workers[MAXWORKERS + 1];
+pthread_t workers[MAXWORKERS + 1];      // because indexed at 1, that's why
 int values[MAXSIZE];
 struct limits {
     long first, last;       // first and last positions for a quicksort partition
@@ -127,6 +127,7 @@ void *Quick(void *l){
         else{
             pthread_mutex_unlock(&lock);
             // go to standard quicksort for left partition
+            printf("Thread %d can't spin new threads, standard quicksort\n", my_id);
             quick(values, first, j-1);
         }
         pthread_mutex_lock(&lock);
@@ -151,12 +152,9 @@ void *Quick(void *l){
         else{
             pthread_mutex_unlock(&lock);
             // go to standard quicksort for left partition
+            printf("Thread %d can't spin new threads, standard quicksort\n", my_id);
             quick(values, j+1, last);
         }
-
-        // let new thread sort right subsection
-        // let old thread sort left subsection, and wait for new to join
-        // pthread_exit, in order to let parent thread accept this child?
     }
     // this should only be reached when all else is resolved
     // pthread_exit returning only null (since array is sorted, no return values needed?)
@@ -169,8 +167,8 @@ void sanity(){
     for(int i = 1; i <= size; i++){
         if(values[i-1] > values[i]){ ordered = false;}
     }
-    if(ordered){ printf("output is ordered\n"); }
-    else { printf("NOT IN ORDER!\n"); }
+    if(ordered){ printf("\noutput is ordered\n\n"); }
+    else { printf("\nNOT IN ORDER!\n\n"); }
 }
 int main(int argc, char *argv[]){
     // read input arguments from command line, or set to standard values
@@ -180,10 +178,6 @@ int main(int argc, char *argv[]){
     if(num_workers > MAXWORKERS){num_workers = STANDARDWORKERS;}
     created_workers = 0;
     pthread_attr_t attr;
-    // pthread_t workers[num_workers];
-    pthread_t *restrict root_worker;
-    // pthread_t *rw;
-    // w = &root_worker;
     pthread_attr_init(&attr);
     pthread_attr_setschedpolicy(&attr, PTHREAD_SCOPE_SYSTEM);
     pthread_mutex_init(&lock, NULL);
@@ -192,11 +186,11 @@ int main(int argc, char *argv[]){
     for(long i = 0; i <= size; i++){ values[i] = rand()%99; }
     // for(long j = 0; j <= num_workers; j++){ workers[j]; }
     #ifdef DEBUG
-        printf("{");
+        /*printf("{");
         for(int i = 0; i < size; i++){
             printf("%d, ", values[i]);
         }
-        printf("}\n");
+        printf("}\n");*/
     #endif
     start_time = read_timer();
 
@@ -207,17 +201,22 @@ int main(int argc, char *argv[]){
     created_workers = 1;
         
     start_time = read_timer();
-    printf("diving into Quick for first time\n");
+    printf("first attempt at start\n");
     pthread_create(&workers[created_workers], &attr, Quick, (void *) starting_point);
     
+    for(int i = 1; i <= num_workers; i++){
+        printf("ending worker %d\n", i);
+        pthread_join(workers[created_workers], NULL);
+    }
+    printf("number of created_workers:   %d\n", created_workers);
 
     end_time = read_timer();
     #ifdef DEBUG
-        printf("{");
+        /*printf("{");
         for(int i = 0; i < size; i++){
             printf("%d, ", values[i]);
         }
-        printf("}\n");
+        printf("}\n");*/
     #endif
     #ifdef DEBUG
         sanity();
