@@ -73,10 +73,18 @@ void quick(int values[], int first, int last){
     }
 }
 
+void *Dummy(void *a){
+    printf("reached the dummy\n");
+    int my_id;
+    struct limits *lim = a;
+    my_id = lim->my_id;
+    printf("thread, given id %d tries to terminate\n", my_id);
+    // pthread_exit(&workers[1]); // om inte specificering görs av vilken pthread_t pointer, så termineras main
+    return NULL;
+}
 
 void *Quick(void *l){
     printf("ENTERED QUICK\n");
-    // long myid = (long) arg;
     int i, j, pivot, temp, my_id;
     long first, last;
     bool left_exists, right_exists;
@@ -90,7 +98,6 @@ void *Quick(void *l){
     left_id = lim->left;
     right_exists = lim->right_exists;
     right_id = lim->right;
-    
 
     printf("reading from struct     first: %ld, last: %ld.  my_id: %d\n", first, last, my_id);
     if(first < last){
@@ -182,15 +189,12 @@ void *Quick(void *l){
         if(left_exists){ quick(values, first, j-1); }    
         if(right_exists){ quick(values, j+1, last); }
     }
-    // TODO: MUST join in its children (if any)
-    // this should only be reached when all else is resolved
-    // pthread_exit returning only null (since array is sorted, no return values needed?)
-    // pthread_join();
-    // how to find a thread's children? should there be something keeping track of left and right child
+    
     if(lim->left_exists){ pthread_join(&lim->left, NULL); }
     if(lim->right_exists){ pthread_join(&lim->right, NULL); }
-    
-    printf("Thread %d exiting\n", lim->my_id);
+    #ifdef DEBUG
+        printf("Thread %d exiting\n", lim->my_id);
+    #endif
     pthread_exit(NULL);
 }
 
@@ -216,7 +220,7 @@ int main(int argc, char *argv[]){
     pthread_mutex_init(&lock, NULL);
 
     // create the array to be sorted, populate with values of [0,98]
-    for(long i = 0; i <= size; i++){ values[i] = rand()%99; }
+    for(long i = 0; i <= size; i++){ values[i] = rand()%999; }
     #ifdef DEBUG
         /*printf("{");
         for(int i = 0; i < size; i++){
@@ -231,16 +235,30 @@ int main(int argc, char *argv[]){
     struct limits point = {(long) 0, (long) size - 1, created_workers, FALSE, FALSE, NULL, NULL};     // first and last indeces of input array, first thread id
     struct limits *starting_point;
     starting_point = &point;
+    pthread_t test;
+    workers[first_worker] = test;
     printf("given starting point: %ld, %ld,  at my_id %d\n", starting_point->first, starting_point->last, starting_point->my_id);
     start_time = read_timer();
     // creating first worker
-    pthread_create(&workers[first_worker], &attr, Quick, (void *) starting_point);
+    printf("creating worker %d\n", first_worker);
+    // pthread_create(&workers[first_worker], &attr, Quick, (void *) starting_point);
+    // pthread_create(&test, &attr, Dummy, (void *) starting_point);
+    pthread_create(&workers[first_worker], &attr, Dummy, (void *) starting_point);
+
+    printf("just after creation of first worker\n");
     
-    
-    printf("number of created_workers:   %d\n", created_workers);
-    pthread_join(&workers[first_worker], NULL);
+    printf("waiting for join....\n");
+
+    // det var workers[n] som är korrekt, inte &workers[n]
+    // pthread_exit krävs inte, om den anropade proceduren inte ska returnera något värde.
+    pthread_join(workers[first_worker], NULL);
+    // pthread_join(test, NULL);
+    printf("joined\n");
 
     end_time = read_timer();
+
+    printf("number of created_workers:   %d\n", created_workers);
+
     #ifdef DEBUG
         /*printf("{");
         for(int i = 0; i < size; i++){
