@@ -35,8 +35,17 @@ double read_timer(){
 
 void quick(int values[], int first, int last){
     int i, j, pivot, temp;
+        
     if(first<last){
         pivot = first;
+        #ifdef DEBUG
+            /*printf("{ pivot: (%d)   ", pivot);
+            for(int a = 0; a < size; a++){
+                printf("%d, ", values[a]);
+            }
+            printf("}\n");*/
+            printf("first %d, last: %d\n", first, last);
+        #endif
         i = first;
         j = last;
         while(i < j){

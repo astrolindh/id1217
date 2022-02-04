@@ -1,6 +1,6 @@
 /*
     Attempt at paralellizing quicksort, using recursive paralellism.
-
+    ATTENTION! CODE DOES NOT WORK!
 */
 
 #ifndef _REENTRANT
@@ -14,7 +14,7 @@
 #include <time.h>
 #include <sys/time.h>
 
-#define MAXSIZE 100000       // max size of input array to be sorted
+#define MAXSIZE 100000       //  max size of input array to be sorted
 #define STANDARDSIZE 100   // if no command line argument to specify input size, use this value
 #define MAXWORKERS 10           // change to 15 for first four levels being new threads only
 #define STANDARDWORKERS 10   // if no number of workers specified at command line, use this value
@@ -50,8 +50,11 @@ double read_timer(){
 }
 
 // non paralellized quicksort - utilized by threads that cannot create further threads
-void quick(int values[], int first, int last){
+void quick(int values[], int first, int last, int thread){
     int i, j, pivot, temp;
+    #ifdef DEBUG
+    printf("quicksort by thread %d     first %d, last: %d\n", thread, first, last);
+    #endif
     if(first<last){
         pivot = first;
         i = first;
@@ -68,28 +71,16 @@ void quick(int values[], int first, int last){
         temp = values[pivot];
         values[pivot] = values[j];
         values[j] = temp;
-        quick(values, first, j-1);  // sort left subsection
-        quick(values, j+1, last);   // sort right subsection
+        quick(values, first, j-1, thread);  // sort left subsection
+        quick(values, j+1, last, thread);   // sort right subsection
     }
 }
 
-void *Dummy(void *a){
-    printf("reached the dummy\n");
-    int my_id;
-    struct limits *lim = a;
-    my_id = lim->my_id;
-    printf("thread, given id %d tries to terminate\n", my_id);
-    // pthread_exit(&workers[1]); // om inte specificering görs av vilken pthread_t pointer, så termineras main
-    return NULL;
-}
-
 void *Quick(void *l){
-    printf("ENTERED QUICK\n");
     int i, j, pivot, temp, my_id;
     long first, last;
     bool left_exists, right_exists;
     pthread_t left_id, right_id;
-    // todo, objektet som tas emot är en limits, ur denna hämtas first, last, my_id
     struct limits *lim = l;
     my_id = lim->my_id;
     first = lim->first;
@@ -98,21 +89,31 @@ void *Quick(void *l){
     left_id = lim->left;
     right_exists = lim->right_exists;
     right_id = lim->right;
+    printf("ENTERED QUICK thread %d.\n", my_id);
 
-    printf("reading from struct     first: %ld, last: %ld.  my_id: %d\n", first, last, my_id);
-    if(first < last){
-        pivot = first;
-        i = first;
-        j = last;
-        while(i < j){
+
+    // printf("thread %ld:     first %ld, last %ld\n", my_id, first, last);
+    pivot = first;
+    i = first;
+    j = last;
+    if(abs(last - first) < 10){
+        printf("branch %d too small, exiting after standard quicksort\n", my_id);
+        quick(values, first, last, my_id);
+        pthread_exit(NULL);
+    }
+    else if(first < last){
+        
+        while(values[i] < values[j]){
             while(values[i] <= values[pivot] && i < last) { i++; }
-            while(values[j] > values[pivot]){ j--; }
+            while(values[j] > values[pivot] && i < j){ j--; }
             if(i < j){
                 temp = values[i];
                 values[i] = values[j];
                 values[j] = temp;
             }
         }
+        printf("thread %ld:     i , j  %d = (%d)\n", my_id, i,values[i]);
+
         temp = values[pivot];
         values[i] = values[j];
         values[j] = temp;
@@ -127,31 +128,29 @@ void *Quick(void *l){
                 // set up for new thread
                 created_workers++;
                 int new_id = created_workers;
+                lim->left_exists = TRUE;
+                lim->left = &workers[new_id];
+                printf("new worker %d created, left child of %d\n", new_id, my_id);
                 pthread_mutex_unlock(&lock);
                 // critical section end
 
                 pthread_attr_t attr;
                 pthread_attr_init(&attr);
-                struct limits point = {0, j-1, new_id, FALSE, FALSE, NULL, NULL};     // left partition: between first and j-1
+                struct limits point = {first, j-1, new_id, FALSE, FALSE, NULL, NULL};     // left partition: between first and j-1
                 struct limits *partition_limits;
                 partition_limits = &point;
-                printf("Thread %d, starts partition at %ld, %ld\n", 
-                    partition_limits->my_id, 
-                    partition_limits->first, 
-                    partition_limits->last);
+                printf("sending off left child %d of parent %d\n", new_id, my_id);
                 pthread_create(&workers[new_id], &attr, Quick, (void *) partition_limits);
                 // update parent thread info on its left child
-                lim->left_exists = TRUE;
-                lim->left = &workers[new_id];
+                
             }
             // no previous left child exists, but thread spawning is limited
             else{
                 pthread_mutex_unlock(&lock);
                 // go to standard quicksort for left partition
-                printf("Thread %d can't spin new threads, standard quicksort\n", my_id);
-                quick(values, first, j-1);
+                printf("Thread %d can't spin new threads to the left, standard quicksort\n", my_id);
+                quick(values, first, j, my_id);
             }
-            printf("no left exists\n");
         }
         // attempt to spin off a thread to deal with right side partition
         if(!right_exists){
@@ -161,52 +160,56 @@ void *Quick(void *l){
                 // set up for new thread
                 created_workers++;
                 int new_id = created_workers;
+                lim->right_exists = TRUE;
+                lim->right = &workers[new_id];
+                printf("new worker %d created, right child of %d\n", new_id, my_id);
                 pthread_mutex_unlock(&lock);
                 // critical section end
                 pthread_attr_t attr;
                 pthread_attr_init(&attr);
-                struct limits point = {j+1, last, new_id, FALSE, FALSE, NULL, NULL};     // right partition: between j+1 and last
+                struct limits point = {j, last, new_id, FALSE, FALSE, NULL, NULL};     // right partition: between j+1 and last
                 struct limits *partition_limits;
                 partition_limits = &point;
-                printf("Thread %d, starts partition at %ld, %ld\n", 
-                    partition_limits->my_id, 
-                    partition_limits->first, 
-                    partition_limits->last);
+                
                 pthread_create(&workers[new_id], &attr, Quick, (void *) partition_limits);
                 // update parent thread with info on its right child
-                lim->right_exists = TRUE;
-                lim->right = &workers[new_id];
+                
            }
            else{
                 pthread_mutex_unlock(&lock);
                // go to standard quicksort for right partition
-                printf("Thread %d can't spin new threads, standard quicksort\n", my_id);
-                quick(values, j+1, last);
+                printf("Thread %d can't spin new threads to the right, standard quicksort\n", my_id);
+                quick(values, j+1, last, my_id);
            }
         }        
 
         // IF NO THREAD CHILDREN COULD BE SPAWNED; GO TO STANDARD QUICKSORT
-        if(left_exists){ quick(values, first, j-1); }    
-        if(right_exists){ quick(values, j+1, last); }
+        if(left_exists){ quick(values, first, j-1, my_id); }    
+        if(right_exists){ quick(values, j+1, last, my_id); }
     }
     
+    printf("thread %ld waiting for joining children\n", my_id);
+
     if(lim->left_exists){ pthread_join(&lim->left, NULL); }
     if(lim->right_exists){ pthread_join(&lim->right, NULL); }
     #ifdef DEBUG
-        printf("Thread %d exiting\n", lim->my_id);
+        printf("Thread %d ready to exit\n", lim->my_id);
     #endif
     pthread_exit(NULL);
 }
 
-
-void sanity(){
+void sanity(int values[]){
+    int i = 0;
+    int j = 1;
     bool ordered = true;
-    for(int i = 1; i <= size; i++){
-        if(values[i-1] > values[i]){ ordered = false;}
+    for(int i = 1; i <size -1; i++){
+        j++;
+        if(values[i] > values[j]){ ordered = false;}
     }
     if(ordered){ printf("\noutput is ordered\n\n"); }
     else { printf("\nNOT IN ORDER!\n\n"); }
 }
+
 int main(int argc, char *argv[]){
     // read input arguments from command line
     // if no arguments, set to standard values
@@ -220,13 +223,13 @@ int main(int argc, char *argv[]){
     pthread_mutex_init(&lock, NULL);
 
     // create the array to be sorted, populate with values of [0,98]
-    for(long i = 0; i <= size; i++){ values[i] = rand()%999; }
+    for(long i = 0; i < size; i++){ values[i] = rand()%1000; }
     #ifdef DEBUG
-        /*printf("{");
+        printf("{");
         for(int i = 0; i < size; i++){
             printf("%d, ", values[i]);
         }
-        printf("}\n");*/
+        printf("}\n");
     #endif
     created_workers = 0;
     // preparing for creation of first worker
@@ -235,26 +238,15 @@ int main(int argc, char *argv[]){
     struct limits point = {(long) 0, (long) size - 1, created_workers, FALSE, FALSE, NULL, NULL};     // first and last indeces of input array, first thread id
     struct limits *starting_point;
     starting_point = &point;
-    pthread_t test;
-    workers[first_worker] = test;
     printf("given starting point: %ld, %ld,  at my_id %d\n", starting_point->first, starting_point->last, starting_point->my_id);
     start_time = read_timer();
     // creating first worker
     printf("creating worker %d\n", first_worker);
-    // pthread_create(&workers[first_worker], &attr, Quick, (void *) starting_point);
-    // pthread_create(&test, &attr, Dummy, (void *) starting_point);
-    pthread_create(&workers[first_worker], &attr, Dummy, (void *) starting_point);
-
-    printf("just after creation of first worker\n");
+    pthread_create(&workers[first_worker], &attr, Quick, (void *) starting_point);
     
-    printf("waiting for join....\n");
-
-    // det var workers[n] som är korrekt, inte &workers[n]
-    // pthread_exit krävs inte, om den anropade proceduren inte ska returnera något värde.
     pthread_join(workers[first_worker], NULL);
-    // pthread_join(test, NULL);
     printf("joined\n");
-
+    // quick(values, 0, size-1);
     end_time = read_timer();
 
     printf("number of created_workers:   %d\n", created_workers);
@@ -267,7 +259,7 @@ int main(int argc, char *argv[]){
         printf("}\n");*/
     #endif
     #ifdef DEBUG
-        sanity();
+        sanity(values);
     #endif
     printf("Main execution path finished\n");
     printf("The execution time is %g seconds\n", end_time - start_time);
