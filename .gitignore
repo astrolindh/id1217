@@ -8,6 +8,10 @@ ind
 matrixSum.c
 matrixSum
 pc.sems.c
+hw2/hello*
+
+# just notes
+hw1/description.txt
 
 # editor specific
 .vscode/
