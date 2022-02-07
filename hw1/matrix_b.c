@@ -1,3 +1,13 @@
+/*
+Homework assignement 1, ID1217 VT22
+Astrid Lindh
+
+    Task 1B Matrix elements.
+    Compute total sum of all elements. Find the minimum and maximum value elements, 
+    print out the total sum as well as min, max with indeces.
+    Solve without using a barrier (pthread_exit and pthread_join)
+
+*/
 #ifndef _REENTRANT 
 #define _REENTRANT 
 #endif 
