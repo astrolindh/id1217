@@ -60,7 +60,8 @@ int main(int argc, char *argv[]){
 
     start_time = omp_get_wtime();
       
-    #pragma omp parallell for reduction (+:total) private(n)
+    
+    #pragma omp parallel for reduction (+:total) private(n)
     for(m  = 0; m < size; m++){
         for(n = 0; n < size; n++){
             total += matrix[m][n];
