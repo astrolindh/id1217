@@ -1,5 +1,14 @@
 /*
+Homework assignement 2, ID1217 VT22
+Astrid Lindh
+    build and compile with
+        gcc -o open openmatrix.c -fopenmp
 
+    task 1
+    Generate a matrix of size m*m and populate it with random integers
+    in parallel execution, sum up all of the elements to a total
+    Also, find the/a global maximum and minimum values with their corresponding values within the matrix.
+    Time the part of the program that executes in parallel
 */
 
 #include <stdlib.h>
@@ -56,6 +65,7 @@ int main(int argc, char *argv[]){
     #endif
     
 
+    // Data structures to hold found max, min values
     struct extreme_val maxs[num_workers];
     struct extreme_val mins[num_workers];
 
@@ -73,31 +83,24 @@ int main(int argc, char *argv[]){
         local_maxs[i] = 0;
         local_mins[i] = modulo;
     }
-
-
-    // struct extreme_val max = {-1, 0, 0};
-    // struct extreme_val min = {modulo, 0, 0};
+    // STARTING PARALLEl EXECUTION
     start_time = omp_get_wtime();
-
-    // TODO kan vi dela upp så att vi får en nästling? först en parallell, för att hämta min, max. Sen en for reduction, flr summeringen?
-
       
-    #pragma omp parallell for reduction (+:total) private(n);
+    #pragma omp parallell for reduction (+:total) private(n)
     for(m  = 0; m < size; m++){
         for(n = 0; n < size; n++){
             int a = matrix[m][n];
             total += a;
-
-
-            if(local_maxs[omp_get_thread_num()] < a){
-                local_maxs[omp_get_thread_num()] = a;
+            int thread_num = omp_get_thread_num();
+            if(local_maxs[thread_num] < a){
+                local_maxs[thread_num] = a;
                 struct extreme_val ext = {a, m, n};
-                maxs[omp_get_thread_num()] = ext;
+                maxs[thread_num] = ext;
             }
-            if(local_mins[omp_get_thread_num()] > a){
-                local_mins[omp_get_thread_num()] = a;
+            else if(local_mins[thread_num] > a){
+                local_mins[thread_num] = a;
                 struct extreme_val ext = {a, m, n};
-                mins[omp_get_thread_num()] = ext;
+                mins[thread_num] = ext;
             }
         }
     }
@@ -105,10 +108,10 @@ int main(int argc, char *argv[]){
 
     end_time = omp_get_wtime();
     printf("the total is %d\n", total);
+    
     // extract, max, min values
     int lowest = modulo;
     int highest = -1;
-
     int index_max, index_min;
     if(num_workers < 2)
     {
