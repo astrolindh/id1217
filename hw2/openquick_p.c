@@ -11,6 +11,9 @@ Code reference:
 https://stackoverflow.com/questions/16007640/openmp-parallel-quicksort
 answer by user dreamcrash
 
+Original solution includes the use of tasks, which creates a very fast program where the number 
+of threads seem to not have any impact at all on the execution time.
+
 
     The quicksort algorithm sorts the list of numbers by first dividing the list into two sublists,
  so that all the numbers if one sublist  are smaller than all the numbers in the other sublist.
@@ -32,6 +35,8 @@ answer by user dreamcrash
 #define TASK_SIZE 10000
 #define MAX_WORKERS 16
 #define MAX_ELEMS 100000
+
+int n_workers;
 
 
 int isSorted(int *arr, int size){
@@ -74,9 +79,9 @@ void quicksort(int *arr, int pivot, int last){
     int div;
     if(pivot < last){
         div = partition(arr, pivot, last);
-        #pragma omp task shared(arr) if(last - pivot > TASK_SIZE)
+        #pragma omp parallel shared(arr) if( omp_get_num_threads() < n_workers)
         quicksort(arr, pivot, div - 1);
-        #pragma omp task shared(arr) if(last - pivot > TASK_SIZE)
+        #pragma omp parallel shared(arr) if( omp_get_num_threads() < n_workers)
         quicksort(arr, div + 1, last);
     }
 }
@@ -88,6 +93,7 @@ int main(int argc, char *argv[]){
     if(num_elems < 9 || num_elems > MAX_ELEMS) { num_elems = MAX_ELEMS; }
     if(num_workers > MAX_WORKERS){ num_workers = MAX_WORKERS; }
     omp_set_num_threads(num_workers);
+    n_workers = num_workers;
 
     int *to_sort = malloc(num_elems * sizeof(int));
     int *tmp = malloc(num_elems * sizeof(int));
