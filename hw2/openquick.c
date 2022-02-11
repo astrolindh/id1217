@@ -9,7 +9,7 @@ Astrid Lindh
 Code is inspired by but not copied from a source.
 Code reference:
 https://stackoverflow.com/questions/16007640/openmp-parallel-quicksort
-answer by user MYMNeo
+answer by user dreamcrash
 
 
     The quicksort algorithm sorts the list of numbers by first dividing the list into two sublists,
@@ -29,7 +29,9 @@ answer by user MYMNeo
 #include <assert.h>
 #include <omp.h>
 
-#define TASK_SIZE 100
+#define TASK_SIZE 10000
+#define MAX_WORKERS 16
+#define MAX_ELEMS 100000
 
 
 int isSorted(int *arr, int size){
@@ -83,6 +85,8 @@ int main(int argc, char *argv[]){
     int num_elems = (argv > 1) ? atoi(argv[1]) : 10;
     int num_workers = (argc > 2) ? atoi(argv[2]) : 8;
     // set max number of threads
+    if(num_elems < 9 || num_elems > MAX_ELEMS) { num_elems = MAX_ELEMS; }
+    if(num_workers > MAX_WORKERS){ num_workers = MAX_WORKERS; }
     omp_set_num_threads(num_workers);
 
     int *to_sort = malloc(num_elems * sizeof(int));
