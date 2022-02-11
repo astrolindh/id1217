@@ -127,11 +127,10 @@ int main(int argc, char *argv[]){
             }
             if(mins[i].value < lowest){
                 lowest = mins[i].value;
-                index_min;
+                index_min = i;
             }
         }
     }
-
     min = mins[index_min];
     max = maxs[index_max];
     printf("min value %d found at [%d, %d]\n", min.value, min.row, min.col);
