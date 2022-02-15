@@ -21,6 +21,9 @@ hw1/description.txt
 .idea/
 id1217.iml
 
+# java classes
+*.class
+
 
 # Prerequisites
 *.d
