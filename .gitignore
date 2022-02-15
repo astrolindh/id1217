@@ -1,4 +1,4 @@
-# Example files for id127
+# Example files for id127, scratches, file sketches
 counters.c
 counters
 hello.c
@@ -10,11 +10,17 @@ matrixSum
 pc.sems.c
 hw2/hello*
 
+hw3/Hello*
+hw3/SleepMessages*
+
 # just notes
 hw1/description.txt
 
 # editor specific
 .vscode/
+.idea/
+id1217.iml
+
 
 # Prerequisites
 *.d
