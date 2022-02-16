@@ -71,7 +71,6 @@ class ParentBird extends Thread {
         while(true){
             try{
                 // P on producer semaphore - parent gets more worms
-                System.out.println("parent waits for a chirp");
                 prod.acquire();
                 System.out.println("Parent bird has woken up!");
                 dish.worms += nWorms;
@@ -113,28 +112,24 @@ class Chick extends Thread {
 
     @Override
     public void run() {
-        // TODO
-
         while(true){
             try{
-                // con.tryAcquire();
                 con.acquire();
-                System.out.println(String.format("%s woke up and is hungry!", threadName));
                 //if there are worms to eat
                 if(dish.worms > 0){
                     dish.worms--;
                     wormsEaten++;
-                    System.out.println(String.format("%s ate a worm, %d worms remaining", threadName, dish.getNumberWorms()));
+                    // System.out.println(String.format("%s ate a worm, %d worms remaining", threadName, dish.getNumberWorms()));
+                    System.out.println(String.format("%s ate a worm, %d worms total", threadName, wormsEaten));
                     con.release();
-                    //Thread.sleep(5000);
-                    // random sleep
-
                     Thread.sleep((int)(10000*Math.random()));
                 }
                 else{
                     System.out.println(String.format("%s says CHIRP! CHIRP! CHIRP! %d worms in the dish!", threadName, dish.getNumberWorms()));
                     prod.release();
-                    // Producer will release consumer semaphore
+
+                    // no sleep leads to parent bird doing a double fetch of food?
+                    Thread.sleep((int)(10000*Math.random()));
                 }
             }
             catch (InterruptedException ie){
@@ -188,8 +183,6 @@ public class HungryBirds{
             for(int i = 0; i < nChicks; i++){
                 peep[i].start();
             }
-
-
         }
 
         catch (Exception e){
