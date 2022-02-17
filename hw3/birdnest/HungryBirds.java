@@ -36,7 +36,7 @@ class Dish
     public int getNumberWorms(){ return worms; }
 }
 
-// class producent Parent - the Producer
+// class ParentBird - the single Producer
 class ParentBird extends Thread {
     Semaphore prod, con;
     Dish dish;
@@ -52,18 +52,8 @@ class ParentBird extends Thread {
         this.threadName = threadName;
     }
 
-    /* If the dish is empty, the baby bird who discovers the empty dish chirps real loud to awaken the parent bird.
-    The parent bird flies off and gathers W more worms, puts them in the dish, and then waits for the dish to be
-    empty again
-
-    will only activate if producer semaphore is available (this signal given by hungty Chick)
-    refills bowl
-    sets producer semaphore to 0, consumer semaphore to 1
-     */
-
     @Override
     public void run() {
-        // TODO
 
         // sleep, waiting for signal to wake up (chirp)
         // refill Dish with more worms
@@ -129,6 +119,8 @@ class Chick extends Thread {
                     prod.release();
 
                     // no sleep leads to parent bird doing a double fetch of food?
+                    // Minskar risk, MEN det händer ändå!!!
+
                     Thread.sleep((int)(10000*Math.random()));
                 }
             }
