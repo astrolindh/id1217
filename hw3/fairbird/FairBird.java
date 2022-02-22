@@ -111,7 +111,7 @@ class Chick extends Thread {
                     System.out.println(String.format("%s says CHIRP! CHIRP! CHIRP! %d worms in the dish!", threadName, dish.getNumberWorms()));
                     prod.release();
                 }
-                //Thread.sleep((int)(10000*Math.random()));
+                Thread.sleep((int)(10000*Math.random()));
                 //Thread.sleep(3000);
             }
             catch (InterruptedException ie){
