@@ -12,6 +12,10 @@ hw2/hello*
 
 hw3/Hello*
 hw3/SleepMessages*
+hw3/fairbear/BinarySemaphore.java
+
+
+hw4/hello*
 
 # just notes
 hw1/description.txt
