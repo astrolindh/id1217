@@ -11,7 +11,7 @@ developed monitor. Is your solution fair? Explain in comments in the source code
 
  */
 
-import java.util.concurrent.*;
+import java.util.concurrent.Semaphore;
 
 // Monitor class
 class Dish
@@ -79,6 +79,7 @@ class ParentBird extends Thread {
             try{
                 dish.deposit();
                 System.out.println(String.format("SQUAWK! %s put %d worms in the dish", threadName, nWorms));
+                Thread.sleep((int)(1000*Math.random()));
             }
             catch (Exception ie){
                 System.out.println("Interruption in ParentBird");
@@ -109,9 +110,9 @@ class Chick extends Thread {
                 dish.consume(this.threadName, this.wormsEaten);
                 wormsEaten++;
                 //System.out.println(String.format("%s ate a worm, %d worms eaten total", threadName, wormsEaten));
-                Thread.sleep((int)(10000*Math.random()));
+                // Thread.sleep((int)(10000*Math.random()));
             }
-            catch (InterruptedException ie){
+            catch (Exception ie){
                 System.out.println(String.format("Interrupted: %s", threadName));
                 System.out.println(ie);
             }
@@ -120,7 +121,7 @@ class Chick extends Thread {
 }
 
 // driver class
-public class MonitorBirds{
+public class UnfairBirds{
     public static void main(String args[]) throws InterruptedException{
         int nChicks, nWorms;
 
