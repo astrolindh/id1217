@@ -17,6 +17,11 @@ hw3/fairbear/BinarySemaphore.java
 
 hw4/hello*
 
+hw5/compute/*
+hw5/client/*
+hw5/engine/*
+hw5/test/*
+
 # just notes
 hw1/description.txt
 
